@@ -14,7 +14,7 @@ Therefore, if we expand the task to get not only dialouge text but also video as
 ## Task Organizers
 
 * Prof. Key-Sun Choi, [SWRC](http://semanticweb.kaist.ac.kr/), [KAIST](http://www.kaist.edu).
-* Kijong Han, [SWRC](http://semanticweb.kaist.ac.kr/), [KAIST](http://www.kaist.edu).
+* Kijong Han, [SWRC](http://semanticweb.kaist.ac.kr/), [KAIST](http://www.kaist.edu). (han0ah@kaist.ac.kr)
 * Giyeon Shin, [SWRC](http://semanticweb.kaist.ac.kr/), [KAIST](http://www.kaist.edu).
 
 ## Datasets
