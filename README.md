@@ -88,13 +88,13 @@ Here is a sample from the training dataset:
 A mention may include more than one word:
 
 ```
-/friends-s01e02  0  0  Ugly         JJ   (TOP(S(NP(ADJP*  ugly         -  -  Chandler_Bing  *  332158 334460 00006.npy (380
-/friends-s01e02  0  1  Naked        JJ                *)  naked        -  -  Chandler_Bing  *  332158 334460 00006.npy -
-/friends-s01e02  0  2  Guy          NNP               *)  Guy          -  -  Chandler_Bing  *  332158 334460 00006.npy 380)
-/friends-s01e02  0  3  got          VBD             (VP*  get          -  -  Chandler_Bing  *  332158 334460 00006.npy -
-/friends-s01e02  0  4  a            DT              (NP*  a            -  -  Chandler_Bing  *  332158 334460 00006.npy -
-/friends-s01e02  0  5  Thighmaster  NN               *))  thighmaster  -  -  Chandler_Bing  *  332158 334460 00006.npy -
-/friends-s01e02  0  6  !            .                *))  !            -  -  Chandler_Bing  *  332158 334460 00006.npy -
+/friends-s01e02  0  0  Ugly         JJ   (TOP(S(NP(ADJP*  ugly         -  -  Chandler_Bing  *  332158 334460 00038.npy (380
+/friends-s01e02  0  1  Naked        JJ                *)  naked        -  -  Chandler_Bing  *  332158 334460 00038.npy -
+/friends-s01e02  0  2  Guy          NNP               *)  Guy          -  -  Chandler_Bing  *  332158 334460 00038.npy 380)
+/friends-s01e02  0  3  got          VBD             (VP*  get          -  -  Chandler_Bing  *  332158 334460 00038.npy -
+/friends-s01e02  0  4  a            DT              (NP*  a            -  -  Chandler_Bing  *  332158 334460 00038.npy -
+/friends-s01e02  0  5  Thighmaster  NN               *))  thighmaster  -  -  Chandler_Bing  *  332158 334460 00038.npy -
+/friends-s01e02  0  6  !            .                *))  !            -  -  Chandler_Bing  *  332158 334460 00038.npy -
 
 ```
 
