@@ -13,9 +13,11 @@ Therefore, if we expand the task to get not only dialouge text but also video as
 
 ## Task Organizers
 
-* Prof. Key-Sun Choi, [SWRC](http://semanticweb.kaist.ac.kr/), [KAIST](http://www.kaist.edu).
-* Kijong Han, [SWRC](http://semanticweb.kaist.ac.kr/), [KAIST](http://www.kaist.edu). (han0ah@kaist.ac.kr)
-* Giyeon Shin, [SWRC](http://semanticweb.kaist.ac.kr/), [KAIST](http://www.kaist.edu).
+* Prof. Key-Sun Choi, [Semantic Web Research Center](http://semanticweb.kaist.ac.kr/), [KAIST](http://www.kaist.edu).
+* Prof. Byoung-Tak Zhang, [Biointelligence Lab](https://bi.snu.ac.kr/), [Seoul National University](http://www.useoul.edu/).
+* Kijong Han, [Semantic Web Research Center](http://semanticweb.kaist.ac.kr/), [KAIST](http://www.kaist.edu). (han0ah@kaist.ac.kr)
+* Seong-Ho Choi, [Biointelligence Lab](https://bi.snu.ac.kr/), [Seoul National University](http://www.useoul.edu/).
+* Giyeon Shin, [Semantic Web Research Center](http://semanticweb.kaist.ac.kr/), [KAIST](http://www.kaist.edu).
 
 ## Datasets
 * This dataset is based on [SemEval2018 Task4 dataset](https://github.com/emorynlp/semeval-2018-task4). We added time and video information
