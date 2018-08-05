@@ -107,3 +107,15 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# kenton-lee model
+evaluate_result.pickle
+elmo_cache.hdf5
+glove.840B.300d.txt.filtered
+char_vocab.english.txt
+glove_50_300_2.txt
+glove.840B.300d.txt
+data/sys.out
+data/train.english.jsonlines
+data/dev.english.jsonlines
+data/test.english.jsonlines
