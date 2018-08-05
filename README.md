@@ -64,39 +64,39 @@ Each sentence is delimited by a new line ("\n") and each column indicates the fo
 Here is a sample from the training dataset:
 
 ```
-/friends-s01e01  0  0  He     PRP   (TOP(S(NP*)    he     -  -  Monica_Geller   *  55422 59256 00005.npy (284)
-/friends-s01e01  0  1  's     VBZ          (VP*    be     -  -  Monica_Geller   *  55422 59256 00005.npy -
-/friends-s01e01  0  2  just   RB        (ADVP*)    just   -  -  Monica_Geller   *  55422 59256 00005.npy -
-/friends-s01e01  0  3  some   DT        (NP(NP*    some   -  -  Monica_Geller   *  55422 59256 00005.npy -
-/friends-s01e01  0  4  guy    NN             *)    guy    -  -  Monica_Geller   *  55422 59256 00005.npy (284)
-/friends-s01e01  0  5  I      PRP  (SBAR(S(NP*)    I      -  -  Monica_Geller   *  55422 59256 00005.npy (248)
-/friends-s01e01  0  6  work   VBP          (VP*    work   -  -  Monica_Geller   *  55422 59256 00005.npy -
-/friends-s01e01  0  7  with   IN     (PP*))))))    with   -  -  Monica_Geller   *  55422 59256 00005.npy -
-/friends-s01e01  0  8  !      .             *))    !      -  -  Monica_Geller   *  55422 59256 00005.npy -
+/friends-s01e01  0  0  He     PRP   (TOP(S(NP*)    he     -  -  Monica_Geller   *  55422 59256 00005.pickle (284)
+/friends-s01e01  0  1  's     VBZ          (VP*    be     -  -  Monica_Geller   *  55422 59256 00005.pickle -
+/friends-s01e01  0  2  just   RB        (ADVP*)    just   -  -  Monica_Geller   *  55422 59256 00005.pickle -
+/friends-s01e01  0  3  some   DT        (NP(NP*    some   -  -  Monica_Geller   *  55422 59256 00005.pickle -
+/friends-s01e01  0  4  guy    NN             *)    guy    -  -  Monica_Geller   *  55422 59256 00005.pickle (284)
+/friends-s01e01  0  5  I      PRP  (SBAR(S(NP*)    I      -  -  Monica_Geller   *  55422 59256 00005.pickle (248)
+/friends-s01e01  0  6  work   VBP          (VP*    work   -  -  Monica_Geller   *  55422 59256 00005.pickle -
+/friends-s01e01  0  7  with   IN     (PP*))))))    with   -  -  Monica_Geller   *  55422 59256 00005.pickle -
+/friends-s01e01  0  8  !      .             *))    !      -  -  Monica_Geller   *  55422 59256 00005.pickle -
 ```
 ```
-/friends-s01e01  0  0  C'mon  VB   (TOP(S(S(VP*))  c'mon  -  -  Joey_Tribbiani  *  59459 61586 00006.npy -
-/friends-s01e01  0  1  ,      ,                 *  ,      -  -  Joey_Tribbiani  *  59459 61586 00006.npy -
-/friends-s01e01  0  2  you    PRP           (NP*)  you    -  -  Joey_Tribbiani  *  59459 61586 00006.npy (248)
-/friends-s01e01  0  3  're    VBP            (VP*  be     -  -  Joey_Tribbiani  *  59459 61586 00006.npy -
-/friends-s01e01  0  4  going  VBG            (VP*  go     -  -  Joey_Tribbiani  *  59459 61586 00006.npy -
-/friends-s01e01  0  5  out    RP           (PRT*)  out    -  -  Joey_Tribbiani  *  59459 61586 00006.npy -
-/friends-s01e01  0  6  with   IN             (PP*  with   -  -  Joey_Tribbiani  *  59459 61586 00006.npy -
-/friends-s01e01  0  7  the    DT             (NP*  the    -  -  Joey_Tribbiani  *  59459 61586 00006.npy -
-/friends-s01e01  0  8  guy    NN            *))))  guy    -  -  Joey_Tribbiani  *  59459 61586 00006.npy (284)
-/friends-s01e01  0  9  !      .               *))  !      -  -  Joey_Tribbiani  *  59459 61586 00006.npy -
+/friends-s01e01  0  0  C'mon  VB   (TOP(S(S(VP*))  c'mon  -  -  Joey_Tribbiani  *  59459 61586 00006.pickle -
+/friends-s01e01  0  1  ,      ,                 *  ,      -  -  Joey_Tribbiani  *  59459 61586 00006.pickle -
+/friends-s01e01  0  2  you    PRP           (NP*)  you    -  -  Joey_Tribbiani  *  59459 61586 00006.pickle (248)
+/friends-s01e01  0  3  're    VBP            (VP*  be     -  -  Joey_Tribbiani  *  59459 61586 00006.pickle -
+/friends-s01e01  0  4  going  VBG            (VP*  go     -  -  Joey_Tribbiani  *  59459 61586 00006.pickle -
+/friends-s01e01  0  5  out    RP           (PRT*)  out    -  -  Joey_Tribbiani  *  59459 61586 00006.pickle -
+/friends-s01e01  0  6  with   IN             (PP*  with   -  -  Joey_Tribbiani  *  59459 61586 00006.pickle -
+/friends-s01e01  0  7  the    DT             (NP*  the    -  -  Joey_Tribbiani  *  59459 61586 00006.pickle -
+/friends-s01e01  0  8  guy    NN            *))))  guy    -  -  Joey_Tribbiani  *  59459 61586 00006.pickle (284)
+/friends-s01e01  0  9  !      .               *))  !      -  -  Joey_Tribbiani  *  59459 61586 00006.pickle -
 ```
 
 A mention may include more than one word:
 
 ```
-/friends-s01e02  0  0  Ugly         JJ   (TOP(S(NP(ADJP*  ugly         -  -  Chandler_Bing  *  332158 334460 00038.npy (380
-/friends-s01e02  0  1  Naked        JJ                *)  naked        -  -  Chandler_Bing  *  332158 334460 00038.npy -
-/friends-s01e02  0  2  Guy          NNP               *)  Guy          -  -  Chandler_Bing  *  332158 334460 00038.npy 380)
-/friends-s01e02  0  3  got          VBD             (VP*  get          -  -  Chandler_Bing  *  332158 334460 00038.npy -
-/friends-s01e02  0  4  a            DT              (NP*  a            -  -  Chandler_Bing  *  332158 334460 00038.npy -
-/friends-s01e02  0  5  Thighmaster  NN               *))  thighmaster  -  -  Chandler_Bing  *  332158 334460 00038.npy -
-/friends-s01e02  0  6  !            .                *))  !            -  -  Chandler_Bing  *  332158 334460 00038.npy -
+/friends-s01e02  0  0  Ugly         JJ   (TOP(S(NP(ADJP*  ugly         -  -  Chandler_Bing  *  332158 334460 00038.pickle (380
+/friends-s01e02  0  1  Naked        JJ                *)  naked        -  -  Chandler_Bing  *  332158 334460 00038.pickle -
+/friends-s01e02  0  2  Guy          NNP               *)  Guy          -  -  Chandler_Bing  *  332158 334460 00038.pickle 380)
+/friends-s01e02  0  3  got          VBD             (VP*  get          -  -  Chandler_Bing  *  332158 334460 00038.pickle -
+/friends-s01e02  0  4  a            DT              (NP*  a            -  -  Chandler_Bing  *  332158 334460 00038.pickle -
+/friends-s01e02  0  5  Thighmaster  NN               *))  thighmaster  -  -  Chandler_Bing  *  332158 334460 00038.pickle -
+/friends-s01e02  0  6  !            .                *))  !            -  -  Chandler_Bing  *  332158 334460 00038.pickle -
 
 ```
 
