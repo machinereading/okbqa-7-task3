@@ -6,6 +6,12 @@ curl -O https://nlp.stanford.edu/data/glove.840B.300d.zip
 unzip glove.840B.300d.zip
 rm glove.840B.300d.zip
 
+# Download Scene embeddings.
+curl -O http://deeplearning.kaist.ac.kr/data/scene_embedding.zip
+mv scene_embedding.zip data/scene_embedding.zip
+unzip data/scene_embedding.zip -d data/scene_embedding
+rm data/scene_embedding.zip
+
 # Build custom kernels.
 TF_CFLAGS=( $(python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_compile_flags()))') )
 TF_LFLAGS=( $(python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))') )
