@@ -119,3 +119,4 @@ data/sys.out
 data/train.english.jsonlines
 data/dev.english.jsonlines
 data/test.english.jsonlines
+data/scene_embedding/
