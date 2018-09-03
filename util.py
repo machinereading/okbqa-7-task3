@@ -10,6 +10,7 @@ import json
 import math
 import shutil
 import sys
+import pickle
 
 import numpy as np
 import tensorflow as tf
@@ -62,6 +63,17 @@ def load_char_dict(char_vocab_path):
   char_dict = collections.defaultdict(int)
   char_dict.update({c:i for i, c in enumerate(vocab)})
   return char_dict
+
+def load_scene_embedding(scene_embedding_dir):
+  scene_embedding = {}
+  fname_list = os.listdir(scene_embedding_dir)
+  for fname in fname_list:
+    fpath = os.path.join(scene_embedding_dir, fname)
+    with open(fpath, 'rb') as handle:
+      data = pickle.load(handle)
+      scene_embedding[fname] = data
+  return scene_embedding
+
 
 def maybe_divide(x, y):
   return 0 if y == 0 else x / float(y)

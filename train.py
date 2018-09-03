@@ -61,5 +61,5 @@ if __name__ == "__main__":
 
         print("[{}] evaL_f1={:.2f}, max_f1={:.2f}".format(tf_global_step, eval_f1, max_f1))
 
-      if (tf_global_step == 1001):
+      if (tf_global_step == 50001):
         break

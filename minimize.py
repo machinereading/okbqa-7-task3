@@ -20,9 +20,15 @@ class DocumentState(object):
     self.text_speakers = []
     self.speakers = []
     self.sentences = []
+    
+    self.start_times_item = []
+    self.end_times_item = []
+    self.video_npy_files_item = []
+
     self.start_times = []
     self.end_times = []
     self.video_npy_files = []
+    
     self.constituents = {}
     self.const_stack = []
     self.ner = {}
@@ -151,6 +157,15 @@ def handle_line(line, document_state, language, labels, stats):
       del document_state.text[:]
       document_state.speakers.append(tuple(document_state.text_speakers))
       del document_state.text_speakers[:]
+
+      document_state.start_times.append(tuple(document_state.start_times_item))
+      document_state.end_times.append(tuple(document_state.end_times_item))
+      document_state.video_npy_files.append(tuple(document_state.video_npy_files_item))
+
+      del document_state.start_times_item[:]
+      del document_state.end_times_item[:]
+      del document_state.video_npy_files_item[:]
+
       return None
     assert len(row) >= 12
 
@@ -167,10 +182,11 @@ def handle_line(line, document_state, language, labels, stats):
     word_index = len(document_state.text) + sum(len(s) for s in document_state.sentences)
     document_state.text.append(word)
     document_state.text_speakers.append(speaker)
-    if (len(document_state.start_times) == 0 or (not (document_state.start_times[-1] == st_time and document_state.end_times[-1] == en_time))):
-      document_state.start_times.append(st_time)
-      document_state.end_times.append(en_time)
-      document_state.video_npy_files.append(video_npy_file)
+
+    document_state.start_times_item.append(st_time)
+    document_state.end_times_item.append(en_time)
+    document_state.video_npy_files_item.append(video_npy_file)
+
 
     handle_bit(word_index, parse, document_state.const_stack, document_state.constituents)
     handle_bit(word_index, ner, document_state.ner_stack, document_state.ner)
