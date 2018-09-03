@@ -8,12 +8,12 @@ ENAME_TO_ID = {}
 EID_TO_NAME = {}
 
 def get_eid_by_mention(mention, speaker):
+    mention = re.sub(r'[^\w]', ' ', mention).replace(' ', '').lower()
+
     #first-person pronoun match
-    if (mention in ['I', 'my', 'me', 'mine']):
+    if (mention in ['i', 'my', 'me', 'mine']):
         if (speaker in ENAME_TO_ID):
             return ENAME_TO_ID[speaker]
-
-    mention = re.sub(r'[^\w]', ' ', mention).replace(' ', '').lower()
 
     # all_match
     for ename_key in ENAME_TO_ID:
@@ -28,7 +28,7 @@ def get_eid_by_mention(mention, speaker):
             r_ename_key = re.sub(r'[^\w]', ' ', names[0]).replace(' ', '').lower()
             if (mention == r_ename_key):
                 return ENAME_TO_ID[ename_key]
-    return 0
+    return 1000
 
 # entity_map
 f = open('data/friends_entity_map.txt')
