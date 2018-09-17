@@ -85,19 +85,14 @@ for doc_key, cluster_list in predict_data.items():
                 mention = mention + nlp_datas[doc_key][j]['word'] + ' '
             mention = mention.strip()
 
-            eid_list.append(get_eid_by_mention(mention,speaker))
-
-        non_zero=False
-        for eid in eid_list:
-            if (eid > 0):
-                non_zero = True
-                break
+            inferred_eid = get_eid_by_mention(mention,speaker)
+            if (inferred_eid < 1000):
+                eid_list.append(inferred_eid)
 
         # set most common id to cluster id, unless all are 0
-        cluster_eid =  max(set(eid_list), key=eid_list.count) if non_zero else 0
+        cluster_eid =  max(set(eid_list), key=eid_list.count) if len(eid_list) > 0 else 1000
         predict_data[doc_key][cluster_idx] = {'cluster_eid':cluster_eid,
                                               'cluster':cluster}
-
 
 f_out = open('data/sys.out','w',encoding='utf-8')
 for index,item in enumerate(gold_datas):
