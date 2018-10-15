@@ -349,7 +349,7 @@ class CorefModel(object):
 
 
     #Video Scene Emb
-    ffnn_scene_emb = util.ffnn(scene_emb, num_hidden_layers=1, hidden_size=400, output_size=100, dropout=self.dropout) # [num_words, 100]
+    ffnn_scene_emb = util.ffnn(scene_emb, num_hidden_layers=self.config["ffnn_depth"], hidden_size=400, output_size=128, dropout=self.dropout) # [num_words, 100]
     candidate_scene_emb = self.get_scene_emb(ffnn_scene_emb, candidate_starts) #[num_candidates, 100]
 
     candidate_mention_scores =  self.get_mention_scores(candidate_span_emb) # [k, 1]
@@ -411,7 +411,8 @@ class CorefModel(object):
     pairwise_labels = tf.logical_and(same_cluster_indicator, non_dummy_indicator) # [k, c]
     dummy_labels = tf.logical_not(tf.reduce_any(pairwise_labels, 1, keepdims=True)) # [k, 1]
     top_antecedent_labels = tf.concat([dummy_labels, pairwise_labels], 1) # [k, c + 1]
-    loss = self.softmax_loss(top_antecedent_scores, top_antecedent_labels) # [k]
+    loss, log_norm, marginalized, softmax_gold_score = self.softmax_loss(top_antecedent_scores, top_antecedent_labels) # [k]
+    loss_array = loss
     loss = tf.reduce_sum(loss) # []
 
     return [candidate_starts, candidate_ends, candidate_mention_scores, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores], loss
@@ -461,7 +462,7 @@ class CorefModel(object):
     gold_scores = antecedent_scores + tf.log(tf.to_float(antecedent_labels)) # [k, max_ant + 1]
     marginalized_gold_scores = tf.reduce_logsumexp(gold_scores, [1]) # [k]
     log_norm = tf.reduce_logsumexp(antecedent_scores, [1]) # [k]
-    return log_norm - marginalized_gold_scores # [k]
+    return log_norm - marginalized_gold_scores, log_norm, marginalized_gold_scores, gold_scores # [k]
 
   def bucket_distance(self, distances):
     """
@@ -623,29 +624,21 @@ class CorefModel(object):
     coref_predictions = {}
     coref_evaluator = metrics.CorefEvaluator()
 
+    avg_loss = 0.0
     for example_num, (tensorized_example, example) in enumerate(self.eval_data):
       _, _, _, _, _, _, _, _, _, gold_starts, gold_ends, _, _ = tensorized_example
       feed_dict = {i:t for i,t in zip(self.input_tensors, tensorized_example)}
-      candidate_starts, candidate_ends, candidate_mention_scores, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores = session.run(self.predictions, feed_dict=feed_dict)
-      
-      '''
-      print ('***********************')
-      print ('num_words', candidate_starts.shape[0])
-      print ('gold_start',gold_starts[0:10])
-      print ('gold_ends',gold_ends[0:10])
-      print ('top_start',top_span_starts[0:10])
-      print ('top_ends',top_span_ends[0:10])
-      print ('issmae???', gold_span_indices.shape, gold_starts.shape, top_span_starts.shape)
-      print ('gold_indices_list',gold_span_indices[0:5])
-      print ('***********************')
-      '''
-      
-
+      predictions, loss = session.run([self.predictions, self.loss], feed_dict=feed_dict)
+      candidate_starts, candidate_ends, candidate_mention_scores, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores = predictions   
       predicted_antecedents = self.get_predicted_antecedents(top_antecedents, top_antecedent_scores)
-      coref_predictions[example["doc_key"]] = self.evaluate_coref(top_span_starts, top_span_ends, predicted_antecedents, example["clusters"], coref_evaluator)
-      if example_num % 10 == 0:
-        print("Evaluated {}/{} examples.".format(example_num + 1, len(self.eval_data)))
 
+      coref_predictions[example["doc_key"]] = self.evaluate_coref(top_span_starts, top_span_ends, predicted_antecedents, example["clusters"], coref_evaluator)
+
+      if example_num % 20 == 0:
+        pass#print("Evaluated {}/{} examples.".format(example_num + 1, len(self.eval_data)))
+      avg_loss += loss
+
+    avg_loss = avg_loss / len(self.eval_data)
     summary_dict = {}
     conll_results = conll.evaluate_conll(self.config["conll_eval_path"], coref_predictions, official_stdout)
 
@@ -665,5 +658,8 @@ class CorefModel(object):
     print("Average precision (py): {:.2f}%".format(p * 100))
     summary_dict["Average recall (py)"] = r
     print("Average recall (py): {:.2f}%".format(r * 100))
+    summary_dict["Validation loss"] = avg_loss
+    print("Validation loss: {:.3f}".format(avg_loss))
+    
 
-    return util.make_summary(summary_dict), average_f1
+    return util.make_summary(summary_dict), average_f1, avg_loss
