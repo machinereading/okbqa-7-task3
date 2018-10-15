@@ -20,6 +20,9 @@ class DocumentState(object):
     self.text_speakers = []
     self.speakers = []
     self.sentences = []
+
+    self.text_genders = []
+    self.genders = []
     
     self.start_times_item = []
     self.end_times_item = []
@@ -92,7 +95,8 @@ class DocumentState(object):
       "clusters": merged_clusters,
       "start_times": self.start_times,
       "end_times": self.end_times,
-      "video_npy_files": self.video_npy_files
+      "video_npy_files": self.video_npy_files,
+      "genders": self.genders
     }
 
 def normalize_word(word, language):
@@ -161,10 +165,12 @@ def handle_line(line, document_state, language, labels, stats):
       document_state.start_times.append(tuple(document_state.start_times_item))
       document_state.end_times.append(tuple(document_state.end_times_item))
       document_state.video_npy_files.append(tuple(document_state.video_npy_files_item))
+      document_state.genders.append(tuple(document_state.text_genders))
 
       del document_state.start_times_item[:]
       del document_state.end_times_item[:]
       del document_state.video_npy_files_item[:]
+      del document_state.text_genders[:]
 
       return None
     assert len(row) >= 12
@@ -187,6 +193,13 @@ def handle_line(line, document_state, language, labels, stats):
     document_state.end_times_item.append(en_time)
     document_state.video_npy_files_item.append(video_npy_file)
 
+    if (word.lower() in ['he','him','his','himself','boy','man']):
+      gender = 1
+    elif (word.lower() in ['she', 'her', 'hers', 'girl', 'woman', 'lady']):
+      gender = -1
+    else:
+      gender = 0
+    document_state.text_genders.append(gender)
 
     handle_bit(word_index, parse, document_state.const_stack, document_state.constituents)
     handle_bit(word_index, ner, document_state.ner_stack, document_state.ner)

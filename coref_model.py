@@ -56,6 +56,7 @@ class CorefModel(object):
     input_props.append((tf.int32, [None])) # Gold ends.
     input_props.append((tf.int32, [None])) # Cluster ids.
     input_props.append((tf.float32, [None, self.scene_emb_size])) # Video Scene Embedding
+    input_props.append((tf.int32, [None])) # Token Genders
 
     self.queue_input_tensors = [tf.placeholder(dtype, shape) for dtype, shape in input_props]
     dtypes, shapes = zip(*input_props)
@@ -141,6 +142,7 @@ class CorefModel(object):
     sentences = example["sentences"]
     num_words = sum(len(s) for s in sentences)
     speakers = util.flatten(example["speakers"])
+    genders = util.flatten(example["genders"])
 
 
     assert num_words == len(speakers)
@@ -195,13 +197,13 @@ class CorefModel(object):
               scene_emb[j] = scene_vec['vec']
         idx_st = idx_ed
 
-    example_tensors = (tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb)
+    example_tensors = (tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders)
     if is_training and len(sentences) > self.config["max_training_sentences"]:
       return self.truncate_example(*example_tensors)
     else:
       return example_tensors
 
-  def truncate_example(self, tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb):
+  def truncate_example(self, tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders):
     max_training_sentences = self.config["max_training_sentences"]
     num_sentences = context_word_emb.shape[0]
     assert num_sentences > max_training_sentences
@@ -218,13 +220,14 @@ class CorefModel(object):
     
     speaker_ids = speaker_ids[word_offset: word_offset + num_words]
     scene_emb = scene_emb[word_offset:word_offset + num_words, :]
+    genders = genders[word_offset:word_offset + num_words]
 
     gold_spans = np.logical_and(gold_ends >= word_offset, gold_starts < word_offset + num_words)
     gold_starts = gold_starts[gold_spans] - word_offset
     gold_ends = gold_ends[gold_spans] - word_offset
     cluster_ids = cluster_ids[gold_spans]
 
-    return tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb
+    return tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders
 
   def get_candidate_labels(self, candidate_starts, candidate_ends, labeled_starts, labeled_ends, labels):
     same_start = tf.equal(tf.expand_dims(labeled_starts, 1), tf.expand_dims(candidate_starts, 0)) # [num_labeled, num_candidates]
@@ -263,7 +266,7 @@ class CorefModel(object):
     top_fast_antecedent_scores += tf.log(tf.to_float(top_antecedents_mask)) # [k, c]
     return top_antecedents, top_antecedents_mask, top_fast_antecedent_scores, top_antecedent_offsets
 
-  def get_predictions_and_loss(self, tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb):
+  def get_predictions_and_loss(self, tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders):
     self.dropout = self.get_dropout(self.config["dropout_rate"], is_training)
     self.lexical_dropout = self.get_dropout(self.config["lexical_dropout_rate"], is_training)
     self.lstm_dropout = self.get_dropout(self.config["lstm_dropout_rate"], is_training)
