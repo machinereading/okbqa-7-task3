@@ -382,6 +382,7 @@ class CorefModel(object):
     top_span_mention_scores = tf.gather(candidate_mention_scores, top_span_indices) # [k]
     top_span_sentence_indices = tf.gather(candidate_sentence_indices, top_span_indices) # [k]
     top_span_speaker_ids = tf.gather(speaker_ids, top_span_starts) # [k]
+    top_span_genders = tf.gather(genders, top_span_ends)
 
     # k : total number of candidates span (M in paper)
     # c : how many antecedents we check (K in paper)
@@ -411,14 +412,39 @@ class CorefModel(object):
     top_antecedent_cluster_ids += tf.to_int32(tf.log(tf.to_float(top_antecedents_mask))) # [k, c]
     same_cluster_indicator = tf.equal(top_antecedent_cluster_ids, tf.expand_dims(top_span_cluster_ids, 1)) # [k, c]
     non_dummy_indicator = tf.expand_dims(top_span_cluster_ids > 0, 1) # [k, 1]
-    pairwise_labels = tf.logical_and(same_cluster_indicator, non_dummy_indicator) # [k, c]
+    pairwise_labels = tf.logical_and(same_cluster_indicator, non_dummy_indicator) # [k, c]집단사기범
     dummy_labels = tf.logical_not(tf.reduce_any(pairwise_labels, 1, keepdims=True)) # [k, 1]
     top_antecedent_labels = tf.concat([dummy_labels, pairwise_labels], 1) # [k, c + 1]
-    loss, log_norm, marginalized, softmax_gold_score = self.softmax_loss(top_antecedent_scores, top_antecedent_labels) # [k]
-    loss_array = loss
-    loss = tf.reduce_sum(loss) # []
+
+    top_antecedent_prob = tf.nn.softmax(top_antecedent_scores, 1) # [k, c + 1]
+    if (self.config["use_gender_logic_rule"]):
+      top_antecedent_prob = self.project_logic_rule(top_antecedent_prob, top_span_genders, top_antecedents, k)
+      marginal_prob = tf.reduce_sum(top_antecedent_prob*tf.to_float(top_antecedent_labels),axis=1)
+      loss = -1 * tf.reduce_sum(tf.log(marginal_prob))
+      top_antecedent_scores = top_antecedent_prob
+    else:
+      loss = self.softmax_loss(top_antecedent_scores, top_antecedent_labels) # [k]
+      loss = tf.reduce_sum(loss) # []
 
     return [candidate_starts, candidate_ends, candidate_mention_scores, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores], loss
+
+  def project_logic_rule(self, prob, top_span_genders, top_antecedents, k):
+    
+    dummy_genders = tf.ones([k,1], tf.float32) # [k,1] set zero value (neutral gender) for non-antecedent
+    top_antecedent_genders = tf.gather(top_span_genders, top_antecedents) # [k,c]
+
+    # [k,c] neutral(0)*other(0,-1,1) = 0,  male(1) * female(-1) = -1 , male(1)*male(1) = 1
+    same_gender = ((tf.expand_dims(top_span_genders,1) * top_antecedent_genders) >= 0) # [k,c]
+    same_gender_logic_value = tf.concat([dummy_genders,tf.to_float(same_gender)],axis=1) # [k,c+1]
+    
+    paramC = self.config["logic_rule_reg_C"]
+    paramLambda = self.config["logic_rule_lambda"]
+
+    # Hu et al. Harnessing Deep Neural Networks with Logic Rules. ACL. 2016
+    top_antecedent_distilled_prob = prob * -1.0 * tf.exp((-1*paramC*paramLambda*(1-same_gender_logic_value))) #[k, c+1]
+    top_antecedent_distilled_prob = top_antecedent_distilled_prob / tf.expand_dims(tf.reduce_sum(top_antecedent_distilled_prob,1),1)
+    
+    return top_antecedent_distilled_prob
 
   def get_span_emb(self, head_emb, context_outputs, span_starts, span_ends):
     span_emb_list = []
@@ -465,7 +491,7 @@ class CorefModel(object):
     gold_scores = antecedent_scores + tf.log(tf.to_float(antecedent_labels)) # [k, max_ant + 1]
     marginalized_gold_scores = tf.reduce_logsumexp(gold_scores, [1]) # [k]
     log_norm = tf.reduce_logsumexp(antecedent_scores, [1]) # [k]
-    return log_norm - marginalized_gold_scores, log_norm, marginalized_gold_scores, gold_scores # [k]
+    return log_norm - marginalized_gold_scores # [k]
 
   def bucket_distance(self, distances):
     """
@@ -629,12 +655,13 @@ class CorefModel(object):
 
     avg_loss = 0.0
     for example_num, (tensorized_example, example) in enumerate(self.eval_data):
-      _, _, _, _, _, _, _, _, _, gold_starts, gold_ends, _, _ = tensorized_example
+      _, _, _, _, _, _, _, _, _, gold_starts, gold_ends, _, _, _ = tensorized_example
       feed_dict = {i:t for i,t in zip(self.input_tensors, tensorized_example)}
+      
       predictions, loss = session.run([self.predictions, self.loss], feed_dict=feed_dict)
-      candidate_starts, candidate_ends, candidate_mention_scores, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores = predictions   
-      predicted_antecedents = self.get_predicted_antecedents(top_antecedents, top_antecedent_scores)
+      candidate_starts, candidate_ends, candidate_mention_scores, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores = predictions
 
+      predicted_antecedents = self.get_predicted_antecedents(top_antecedents, top_antecedent_scores)
       coref_predictions[example["doc_key"]] = self.evaluate_coref(top_span_starts, top_span_ends, predicted_antecedents, example["clusters"], coref_evaluator)
 
       if example_num % 20 == 0:
