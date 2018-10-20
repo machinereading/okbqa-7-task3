@@ -266,6 +266,16 @@ class CorefModel(object):
     top_fast_antecedent_scores += tf.log(tf.to_float(top_antecedents_mask)) # [k, c]
     return top_antecedents, top_antecedents_mask, top_fast_antecedent_scores, top_antecedent_offsets
 
+  def distance_prnuing_wo_mention_score(self, top_span_emb, c):
+    k = util.shape(top_span_emb, 0)
+    top_antecedent_offsets = tf.tile(tf.expand_dims(tf.range(c) + 1, 0), [k, 1]) # [k, c]
+    raw_top_antecedents = tf.expand_dims(tf.range(k), 1) - top_antecedent_offsets # [k, c]
+    top_antecedents_mask = raw_top_antecedents >= 0 # [k, c]
+    top_antecedents = tf.maximum(raw_top_antecedents, 0) # [k, c]
+    
+    top_fast_antecedent_scores = tf.log(tf.to_float(top_antecedents_mask)) # [k, c]
+    return top_antecedents, top_antecedents_mask, top_fast_antecedent_scores, top_antecedent_offsets
+
   def get_predictions_and_loss(self, tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders):
     self.dropout = self.get_dropout(self.config["dropout_rate"], is_training)
     self.lexical_dropout = self.get_dropout(self.config["lexical_dropout_rate"], is_training)
@@ -355,6 +365,10 @@ class CorefModel(object):
     ffnn_scene_emb = util.ffnn(scene_emb, num_hidden_layers=self.config["ffnn_depth"], hidden_size=400, output_size=128, dropout=self.dropout) # [num_words, 100]
     candidate_scene_emb = self.get_scene_emb(ffnn_scene_emb, candidate_starts) #[num_candidates, 100]
 
+    '''
+    #Comment : This part is for calculating mention scores and prnunign metnion
+    #It is not used for this task, because mention boundary are given.
+
     candidate_mention_scores =  self.get_mention_scores(candidate_span_emb) # [k, 1]
     candidate_mention_scores = tf.squeeze(candidate_mention_scores, 1) # [k]
 
@@ -367,6 +381,7 @@ class CorefModel(object):
                                                True) # [1, k]
     top_span_indices.set_shape([1, None])
     top_span_indices = tf.squeeze(top_span_indices, 0) # [k]
+    '''
 
     ######## Only Using Gold Span Indices #####
     k = tf.to_int32(util.shape(gold_span_indices,0))
@@ -379,7 +394,7 @@ class CorefModel(object):
     top_scene_emb = tf.gather(candidate_scene_emb, top_span_indices) # [k, emb-scene]
 
     top_span_cluster_ids = tf.gather(candidate_cluster_ids, top_span_indices) # [k]
-    top_span_mention_scores = tf.gather(candidate_mention_scores, top_span_indices) # [k]
+    #top_span_mention_scores = tf.gather(candidate_mention_scores, top_span_indices) # [k]
     top_span_sentence_indices = tf.gather(candidate_sentence_indices, top_span_indices) # [k]
     top_span_speaker_ids = tf.gather(speaker_ids, top_span_starts) # [k]
     top_span_genders = tf.gather(genders, top_span_ends)
@@ -391,7 +406,8 @@ class CorefModel(object):
     if self.config["coarse_to_fine"]:
       top_antecedents, top_antecedents_mask, top_fast_antecedent_scores, top_antecedent_offsets = self.coarse_to_fine_pruning(top_span_emb, top_span_mention_scores, c)
     else:
-      top_antecedents, top_antecedents_mask, top_fast_antecedent_scores, top_antecedent_offsets = self.distance_pruning(top_span_emb, top_span_mention_scores, c)
+      #top_antecedents, top_antecedents_mask, top_fast_antecedent_scores, top_antecedent_offsets = self.distance_pruning(top_span_emb, top_span_mention_scores, c)
+      top_antecedents, top_antecedents_mask, top_fast_antecedent_scores, top_antecedent_offsets = self.distance_prnuing_wo_mention_score(top_span_emb, c)
 
     dummy_scores = tf.zeros([k, 1]) # [k, 1]
     for i in range(self.config["coref_depth"]):
@@ -426,7 +442,7 @@ class CorefModel(object):
       loss = self.softmax_loss(top_antecedent_scores, top_antecedent_labels) # [k]
       loss = tf.reduce_sum(loss) # []
 
-    return [candidate_starts, candidate_ends, candidate_mention_scores, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores], loss
+    return [candidate_starts, candidate_ends, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores], loss
 
   def project_logic_rule(self, prob, top_span_genders, top_antecedents, k):
     
@@ -659,7 +675,7 @@ class CorefModel(object):
       feed_dict = {i:t for i,t in zip(self.input_tensors, tensorized_example)}
       
       predictions, loss = session.run([self.predictions, self.loss], feed_dict=feed_dict)
-      candidate_starts, candidate_ends, candidate_mention_scores, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores = predictions
+      candidate_starts, candidate_ends, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores = predictions
 
       predicted_antecedents = self.get_predicted_antecedents(top_antecedents, top_antecedent_scores)
       coref_predictions[example["doc_key"]] = self.evaluate_coref(top_span_starts, top_span_ends, predicted_antecedents, example["clusters"], coref_evaluator)
