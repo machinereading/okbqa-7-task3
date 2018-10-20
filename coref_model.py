@@ -394,7 +394,7 @@ class CorefModel(object):
     top_scene_emb = tf.gather(candidate_scene_emb, top_span_indices) # [k, emb-scene]
 
     top_span_cluster_ids = tf.gather(candidate_cluster_ids, top_span_indices) # [k]
-    #top_span_mention_scores = tf.gather(candidate_mention_scores, top_span_indices) # [k]
+    top_span_mention_scores = tf.gather(candidate_mention_scores, top_span_indices) # [k]
     top_span_sentence_indices = tf.gather(candidate_sentence_indices, top_span_indices) # [k]
     top_span_speaker_ids = tf.gather(speaker_ids, top_span_starts) # [k]
     top_span_genders = tf.gather(genders, top_span_ends)
