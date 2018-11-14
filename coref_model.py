@@ -64,8 +64,8 @@ class CorefModel(object):
     self.enqueue_op = queue.enqueue(self.queue_input_tensors)
     self.input_tensors = queue.dequeue()
 
-    self.predictions, self.loss = self.get_predictions_and_loss(*self.input_tensors)
     self.global_step = tf.Variable(0, name="global_step", trainable=False)
+    self.predictions, self.loss = self.get_predictions_and_loss(*self.input_tensors)
     self.reset_global_step = tf.assign(self.global_step, 0)
     learning_rate = tf.train.exponential_decay(self.config["learning_rate"], self.global_step,
                                                self.config["decay_frequency"], self.config["decay_rate"], staircase=True)
@@ -394,7 +394,7 @@ class CorefModel(object):
     top_scene_emb = tf.gather(candidate_scene_emb, top_span_indices) # [k, emb-scene]
 
     top_span_cluster_ids = tf.gather(candidate_cluster_ids, top_span_indices) # [k]
-    top_span_mention_scores = tf.gather(candidate_mention_scores, top_span_indices) # [k]
+    #top_span_mention_scores = tf.gather(candidate_mention_scores, top_span_indices) # [k]
     top_span_sentence_indices = tf.gather(candidate_sentence_indices, top_span_indices) # [k]
     top_span_speaker_ids = tf.gather(speaker_ids, top_span_starts) # [k]
     top_span_genders = tf.gather(genders, top_span_ends)
@@ -434,15 +434,32 @@ class CorefModel(object):
 
     top_antecedent_prob = tf.nn.softmax(top_antecedent_scores, 1) # [k, c + 1]
     if (self.config["use_gender_logic_rule"]):
-      top_antecedent_prob = self.project_logic_rule(top_antecedent_prob, top_span_genders, top_antecedents, k)
+      top_antecedent_prob_with_logic = self.project_logic_rule(top_antecedent_prob, top_span_genders, top_antecedents, k)
+      '''
       marginal_prob = tf.reduce_sum(top_antecedent_prob*tf.to_float(top_antecedent_labels),axis=1)
-      loss = -1 * tf.reduce_sum(tf.log(marginal_prob))
+      gold_loss = -1 * tf.reduce_sum(tf.log(marginal_prob))
       top_antecedent_scores = top_antecedent_prob
+      
+      '''
+      origin_loss = self.softmax_loss(top_antecedent_scores, top_antecedent_labels) # [k]
+      origin_loss = tf.reduce_sum(origin_loss)
+
+      # cross_entropy : -1 * ground_truth * log(prediction)
+      #teacher_loss = tf.reduce_min(tf.nn. (labels=top_antecedent_prob_with_logic, logits=top_antecedent_scores))
+      teacher_loss = tf.reduce_mean(-tf.reduce_sum(top_antecedent_prob_with_logic * tf.log(top_antecedent_prob + 1e-10), reduction_indices=[1]))
+      pi = tf.minimum(self.config["logic_rule_pi_zero"], 1.0 - tf.pow(self.config["logic_rule_imitation_alpha"], tf.to_float(self.global_step)+1.0)) 
+      
+      loss = teacher_loss + origin_loss
+      #loss = tf.where(is_training, pi*teacher_loss + (1.0-pi)*origin_loss, 0.5*teacher_loss + 0.5*origin_loss)
+
+      top_antecedent_scores = top_antecedent_prob_with_logic
     else:
       loss = self.softmax_loss(top_antecedent_scores, top_antecedent_labels) # [k]
       loss = tf.reduce_sum(loss) # []
+      teacher_loss = loss
+      origin_loss = loss
 
-    return [candidate_starts, candidate_ends, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores], loss
+    return [candidate_starts, candidate_ends, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores, teacher_loss, origin_loss], loss
 
   def project_logic_rule(self, prob, top_span_genders, top_antecedents, k):
     
@@ -675,13 +692,13 @@ class CorefModel(object):
       feed_dict = {i:t for i,t in zip(self.input_tensors, tensorized_example)}
       
       predictions, loss = session.run([self.predictions, self.loss], feed_dict=feed_dict)
-      candidate_starts, candidate_ends, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores = predictions
+      candidate_starts, candidate_ends, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores, _, _ = predictions
 
       predicted_antecedents = self.get_predicted_antecedents(top_antecedents, top_antecedent_scores)
       coref_predictions[example["doc_key"]] = self.evaluate_coref(top_span_starts, top_span_ends, predicted_antecedents, example["clusters"], coref_evaluator)
 
       if example_num % 20 == 0:
-        pass#print("Evaluated {}/{} examples.".format(example_num + 1, len(self.eval_data)))
+        print("Evaluated {}/{} examples.".format(example_num + 1, len(self.eval_data)))
       avg_loss += loss
 
     avg_loss = avg_loss / len(self.eval_data)
