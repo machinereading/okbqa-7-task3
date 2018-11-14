@@ -23,6 +23,9 @@ class DocumentState(object):
 
     self.text_genders = []
     self.genders = []
+
+    self.text_fpronouns = []
+    self.fpronouns = []
     
     self.start_times_item = []
     self.end_times_item = []
@@ -96,7 +99,8 @@ class DocumentState(object):
       "start_times": self.start_times,
       "end_times": self.end_times,
       "video_npy_files": self.video_npy_files,
-      "genders": self.genders
+      "genders": self.genders,
+      "first_pronouns": self.fpronouns
     }
 
 def normalize_word(word, language):
@@ -166,11 +170,13 @@ def handle_line(line, document_state, language, labels, stats):
       document_state.end_times.append(tuple(document_state.end_times_item))
       document_state.video_npy_files.append(tuple(document_state.video_npy_files_item))
       document_state.genders.append(tuple(document_state.text_genders))
+      document_state.fpronouns.append(tuple(document_state.text_fpronouns))
 
       del document_state.start_times_item[:]
       del document_state.end_times_item[:]
       del document_state.video_npy_files_item[:]
       del document_state.text_genders[:]
+      del document_state.text_fpronouns[:]
 
       return None
     assert len(row) >= 12
@@ -195,11 +201,16 @@ def handle_line(line, document_state, language, labels, stats):
 
     if (word.lower() in ['he','him','his','himself','boy','man']):
       gender = 1
-    elif (word.lower() in ['she', 'her', 'hers', 'girl', 'woman', 'lady']):
+    elif (word.lower() in ['she', 'her', 'hers', 'herself', 'girl', 'woman', 'lady']):
       gender = -1
     else:
       gender = 0
     document_state.text_genders.append(gender)
+
+    
+    firstpronoun = 1 if (word.lower() in ['i', 'my', 'me', 'mine', 'myself']) else 0
+    document_state.text_fpronouns.append(firstpronoun)
+
 
     handle_bit(word_index, parse, document_state.const_stack, document_state.constituents)
     handle_bit(word_index, ner, document_state.ner_stack, document_state.ner)
