@@ -1,0 +1,15 @@
+100	Leonard Hofstadter
+101	Sheldon Cooper
+102	Penny
+103	Howard Wolowitz
+104	Raj Koothrappali
+105	Leslie Winkle
+106	Eric Gablehauser
+107	Mary Cooper
+108	Receptionist
+109	Missy Cooper
+110	Sheldon's father
+111	Louis
+112	Penny's ex-boyfriend
+113	Leonard's grandma
+114	Joyce Kim
