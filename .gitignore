@@ -118,5 +118,7 @@ data/sys.out
 data/train.english.jsonlines
 data/dev.english.jsonlines
 data/test.english.jsonlines
+data/bigbang.english.jsonlines
+data/friendsnew.english.jsonlines
 data/scene_embedding/
 logs/
