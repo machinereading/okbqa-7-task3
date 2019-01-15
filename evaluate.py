@@ -11,8 +11,15 @@ import util
 if __name__ == "__main__":
   config = util.initialize_from_env()
   model = cm.CorefModel(config)
-  #tf_config = tf.ConfigProto(device_count = {'GPU': 0})
-  gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
+  
+  '''
+  tf_config = tf.ConfigProto(device_count = {'GPU': 0})
+  with tf.Session(config=tf_config) as session:
+    model.restore(session)
+    model.evaluate(session, official_stdout=True)
+  '''
+  gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
   with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as session:
     model.restore(session)
     model.evaluate(session, official_stdout=True)
+  

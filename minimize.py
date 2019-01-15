@@ -61,7 +61,7 @@ class DocumentState(object):
     assert len(self.text_speakers) == 0
     assert len(self.speakers) > 0
     assert len(self.sentences) > 0
-    assert len(self.constituents) > 0
+    #assert len(self.constituents) > 0
     assert len(self.const_stack) == 0
     assert len(self.ner_stack) == 0
     assert all(len(s) == 0 for s in self.coref_stacks.values())
@@ -93,7 +93,8 @@ class DocumentState(object):
       "doc_key": self.doc_key,
       "sentences": self.sentences,
       "speakers": self.speakers,
-      "constituents": self.span_dict_to_list(self.constituents),
+      "constituents": '-',
+      #"constituents": self.span_dict_to_list(self.constituents),
       "ner": self.span_dict_to_list(self.ner),
       "clusters": merged_clusters,
       "start_times": self.start_times,
@@ -153,7 +154,7 @@ def handle_line(line, document_state, language, labels, stats):
     finalized_state = document_state.finalize()
     stats["num_clusters"] += len(finalized_state["clusters"])
     stats["num_mentions"] += sum(len(c) for c in finalized_state["clusters"])
-    labels["{}_const_labels".format(language)].update(l for _, _, l in finalized_state["constituents"])
+    #labels["{}_const_labels".format(language)].update(l for _, _, l in finalized_state["constituents"])
     labels["ner"].update(l for _, _, l in finalized_state["ner"])
     return finalized_state
   else:
@@ -179,6 +180,7 @@ def handle_line(line, document_state, language, labels, stats):
       del document_state.text_fpronouns[:]
 
       return None
+    
     assert len(row) >= 12
 
     doc_key = conll.get_doc_key(row[0], row[1])
@@ -212,7 +214,7 @@ def handle_line(line, document_state, language, labels, stats):
     document_state.text_fpronouns.append(firstpronoun)
 
 
-    handle_bit(word_index, parse, document_state.const_stack, document_state.constituents)
+    #handle_bit(word_index, parse, document_state.const_stack, document_state.constituents)
     handle_bit(word_index, ner, document_state.ner_stack, document_state.ner)
 
     if coref != "-":
@@ -251,6 +253,8 @@ def minimize_language(language, labels, stats):
   minimize_partition("dev", language, "v4_gold_conll", labels, stats)
   minimize_partition("train", language, "v4_gold_conll", labels, stats)
   minimize_partition("test", language, "v4_gold_conll", labels, stats)
+  minimize_partition("bigbang", language, "v4_gold_conll", labels, stats)
+  minimize_partition("friendsnew", language, "v4_gold_conll", labels, stats)
 
 if __name__ == "__main__":
   labels = collections.defaultdict(set)

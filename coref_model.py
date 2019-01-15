@@ -14,7 +14,7 @@ import tensorflow_hub as hub
 import h5py
 
 import util
-import coref_ops
+#import coref_ops
 import conll
 import metrics
 
@@ -57,6 +57,7 @@ class CorefModel(object):
     input_props.append((tf.int32, [None])) # Cluster ids.
     input_props.append((tf.float32, [None, self.scene_emb_size])) # Video Scene Embedding
     input_props.append((tf.int32, [None])) # Token Genders
+    input_props.append((tf.int32, [None])) # Token is First Pronoun
 
     self.queue_input_tensors = [tf.placeholder(dtype, shape) for dtype, shape in input_props]
     dtypes, shapes = zip(*input_props)
@@ -143,6 +144,7 @@ class CorefModel(object):
     num_words = sum(len(s) for s in sentences)
     speakers = util.flatten(example["speakers"])
     genders = util.flatten(example["genders"])
+    fpronouns = util.flatten(example["first_pronouns"])
 
 
     assert num_words == len(speakers)
@@ -197,13 +199,13 @@ class CorefModel(object):
               scene_emb[j] = scene_vec['vec']
         idx_st = idx_ed
 
-    example_tensors = (tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders)
+    example_tensors = (tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders, fpronouns)
     if is_training and len(sentences) > self.config["max_training_sentences"]:
       return self.truncate_example(*example_tensors)
     else:
       return example_tensors
 
-  def truncate_example(self, tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders):
+  def truncate_example(self, tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders, fpronouns):
     max_training_sentences = self.config["max_training_sentences"]
     num_sentences = context_word_emb.shape[0]
     assert num_sentences > max_training_sentences
@@ -221,13 +223,14 @@ class CorefModel(object):
     speaker_ids = speaker_ids[word_offset: word_offset + num_words]
     scene_emb = scene_emb[word_offset:word_offset + num_words, :]
     genders = genders[word_offset:word_offset + num_words]
+    fpronouns = fpronouns[word_offset:word_offset + num_words]
 
     gold_spans = np.logical_and(gold_ends >= word_offset, gold_starts < word_offset + num_words)
     gold_starts = gold_starts[gold_spans] - word_offset
     gold_ends = gold_ends[gold_spans] - word_offset
     cluster_ids = cluster_ids[gold_spans]
 
-    return tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders
+    return tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders, fpronouns
 
   def get_candidate_labels(self, candidate_starts, candidate_ends, labeled_starts, labeled_ends, labels):
     same_start = tf.equal(tf.expand_dims(labeled_starts, 1), tf.expand_dims(candidate_starts, 0)) # [num_labeled, num_candidates]
@@ -276,7 +279,7 @@ class CorefModel(object):
     top_fast_antecedent_scores = tf.log(tf.to_float(top_antecedents_mask)) # [k, c]
     return top_antecedents, top_antecedents_mask, top_fast_antecedent_scores, top_antecedent_offsets
 
-  def get_predictions_and_loss(self, tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders):
+  def get_predictions_and_loss(self, tokens, context_word_emb, head_word_emb, lm_emb, char_index, text_len, speaker_ids, genre, is_training, gold_starts, gold_ends, cluster_ids, scene_emb, genders, fpronouns):
     self.dropout = self.get_dropout(self.config["dropout_rate"], is_training)
     self.lexical_dropout = self.get_dropout(self.config["lexical_dropout_rate"], is_training)
     self.lstm_dropout = self.get_dropout(self.config["lstm_dropout_rate"], is_training)
@@ -398,6 +401,7 @@ class CorefModel(object):
     top_span_sentence_indices = tf.gather(candidate_sentence_indices, top_span_indices) # [k]
     top_span_speaker_ids = tf.gather(speaker_ids, top_span_starts) # [k]
     top_span_genders = tf.gather(genders, top_span_ends)
+    top_span_fpronouns = tf.gather(fpronouns, top_span_ends)
 
     # k : total number of candidates span (M in paper)
     # c : how many antecedents we check (K in paper)
@@ -414,7 +418,7 @@ class CorefModel(object):
       with tf.variable_scope("coref_layer", reuse=(i > 0)):
         top_antecedent_emb = tf.gather(top_span_emb, top_antecedents) # [k, c, emb]
         top_antecedent_scene_emb = tf.gather(top_scene_emb, top_antecedents) # [k, c, emb-scene]
-        top_antecedent_scores = top_fast_antecedent_scores + self.get_slow_antecedent_scores(top_span_emb, top_antecedents, top_antecedent_emb, top_antecedent_offsets, top_span_speaker_ids, genre_emb, top_scene_emb, top_antecedent_scene_emb) # [k, c]
+        top_antecedent_scores = top_fast_antecedent_scores + self.get_slow_antecedent_scores(top_span_emb, top_antecedents, top_antecedent_emb, top_antecedent_offsets, top_span_speaker_ids, genre_emb, top_scene_emb, top_antecedent_scene_emb, top_span_genders, top_span_fpronouns) # [k, c]
         top_antecedent_weights = tf.nn.softmax(tf.concat([dummy_scores, top_antecedent_scores], 1)) # [k, c + 1]
         top_antecedent_emb = tf.concat([tf.expand_dims(top_span_emb, 1), top_antecedent_emb], 1) # [k, c + 1, emb]
         attended_span_emb = tf.reduce_sum(tf.expand_dims(top_antecedent_weights, 2) * top_antecedent_emb, 1) # [k, emb]
@@ -434,23 +438,27 @@ class CorefModel(object):
 
     top_antecedent_prob = tf.nn.softmax(top_antecedent_scores, 1) # [k, c + 1]
     if (self.config["use_gender_logic_rule"]):
-      top_antecedent_prob_with_logic = self.project_logic_rule(top_antecedent_prob, top_span_genders, top_antecedents, k)
+      top_antecedent_prob_with_logic = self.project_logic_rule(top_antecedent_prob, top_span_genders, top_span_fpronouns, top_span_speaker_ids, top_antecedents, k)
       '''
       marginal_prob = tf.reduce_sum(top_antecedent_prob*tf.to_float(top_antecedent_labels),axis=1)
       gold_loss = -1 * tf.reduce_sum(tf.log(marginal_prob))
-      top_antecedent_scores = top_antecedent_prob
-      
+      top_antecedent_scores = top_antecedent_prob      
       '''
       origin_loss = self.softmax_loss(top_antecedent_scores, top_antecedent_labels) # [k]
       origin_loss = tf.reduce_sum(origin_loss)
 
       # cross_entropy : -1 * ground_truth * log(prediction)
       #teacher_loss = tf.reduce_min(tf.nn. (labels=top_antecedent_prob_with_logic, logits=top_antecedent_scores))
-      teacher_loss = tf.reduce_mean(-tf.reduce_sum(top_antecedent_prob_with_logic * tf.log(top_antecedent_prob + 1e-10), reduction_indices=[1]))
+      teacher_loss = tf.reduce_sum(-tf.reduce_sum(top_antecedent_prob_with_logic * tf.log(top_antecedent_prob + 1e-10), reduction_indices=[1]))
+
       pi = tf.minimum(self.config["logic_rule_pi_zero"], 1.0 - tf.pow(self.config["logic_rule_imitation_alpha"], tf.to_float(self.global_step)+1.0)) 
+
+      # For Validation Loss
+      marginal_prob = tf.reduce_sum(top_antecedent_prob_with_logic*tf.to_float(top_antecedent_labels),axis=1)
+      validation_loss = -1 * tf.reduce_sum(tf.log(marginal_prob))
       
-      loss = teacher_loss + origin_loss
-      #loss = tf.where(is_training, pi*teacher_loss + (1.0-pi)*origin_loss, 0.5*teacher_loss + 0.5*origin_loss)
+      #loss = teacher_loss + origin_loss
+      loss = tf.where(is_training, pi*teacher_loss + (1.0-pi)*origin_loss, validation_loss)
 
       top_antecedent_scores = top_antecedent_prob_with_logic
     else:
@@ -461,20 +469,36 @@ class CorefModel(object):
 
     return [candidate_starts, candidate_ends, top_span_starts, top_span_ends, top_antecedents, top_antecedent_scores, teacher_loss, origin_loss], loss
 
-  def project_logic_rule(self, prob, top_span_genders, top_antecedents, k):
+  def project_logic_rule(self, prob, top_span_genders, top_span_fpronouns, top_span_speaker_ids, top_antecedents, k):
+    # Hu et al. Harnessing Deep Neural Networks with Logic Rules. ACL. 2016
     
-    dummy_genders = tf.ones([k,1], tf.float32) # [k,1] set zero value (neutral gender) for non-antecedent
+    ##### gender logic rule
+    dummy_genders = tf.ones([k,1], tf.float32) # [k,1] set true value for non-antecedent
     top_antecedent_genders = tf.gather(top_span_genders, top_antecedents) # [k,c]
 
     # [k,c] neutral(0)*other(0,-1,1) = 0,  male(1) * female(-1) = -1 , male(1)*male(1) = 1
     same_gender = ((tf.expand_dims(top_span_genders,1) * top_antecedent_genders) >= 0) # [k,c]
     same_gender_logic_value = tf.concat([dummy_genders,tf.to_float(same_gender)],axis=1) # [k,c+1]
+
+
+    ##### same speaker and both are first pronoun logic rules
+    dummy_fpronouns = tf.ones([k,1], tf.float32) # [k,1] set true value for non-antecedent
     
+    top_antecedent_fpronouns = tf.gather(top_span_fpronouns, top_antecedents) # [k, c]
+    top_antecedent_speaker_ids = tf.gather(top_span_speaker_ids, top_antecedents) # [k, c]
+
+    fpronoun_count = tf.add(tf.expand_dims(top_span_fpronouns, 1), top_antecedent_fpronouns) # [k, c]
+    no_same_speaker = tf.to_int32(tf.logical_not(tf.equal(tf.expand_dims(top_span_speaker_ids, 1), top_antecedent_speaker_ids))) # [k, c]
+    same_speaker_and_fp = (tf.add(fpronoun_count,no_same_speaker) < 3)
+    same_speaker_and_fp_logic_value = tf.concat([dummy_fpronouns,tf.to_float(same_speaker_and_fp)],axis=1) # [k,c+1]
+
     paramC = self.config["logic_rule_reg_C"]
     paramLambda = self.config["logic_rule_lambda"]
 
-    # Hu et al. Harnessing Deep Neural Networks with Logic Rules. ACL. 2016
-    top_antecedent_distilled_prob = prob * -1.0 * tf.exp((-1*paramC*paramLambda*(1-same_gender_logic_value))) #[k, c+1]
+    
+    exp_term = paramC*paramLambda*(1-same_speaker_and_fp_logic_value) + paramC*paramLambda*(1-same_gender_logic_value)
+    
+    top_antecedent_distilled_prob = prob * -1.0 * tf.exp(-1*exp_term) #[k, c+1]
     top_antecedent_distilled_prob = top_antecedent_distilled_prob / tf.expand_dims(tf.reduce_sum(top_antecedent_distilled_prob,1),1)
     
     return top_antecedent_distilled_prob
@@ -536,7 +560,7 @@ class CorefModel(object):
     combined_idx = use_identity * distances + (1 - use_identity) * logspace_idx
     return tf.clip_by_value(combined_idx, 0, 9)
 
-  def get_slow_antecedent_scores(self, top_span_emb, top_antecedents, top_antecedent_emb, top_antecedent_offsets, top_span_speaker_ids, genre_emb, top_scene_emb, top_antecedent_scene_emb):
+  def get_slow_antecedent_scores(self, top_span_emb, top_antecedents, top_antecedent_emb, top_antecedent_offsets, top_span_speaker_ids, genre_emb, top_scene_emb, top_antecedent_scene_emb, top_span_genders, top_span_fpronouns):
     k = util.shape(top_span_emb, 0)
     c = util.shape(top_antecedents, 1)
 
@@ -548,8 +572,20 @@ class CorefModel(object):
       speaker_pair_emb = tf.gather(tf.get_variable("same_speaker_emb", [2, self.config["feature_size"]]), tf.to_int32(same_speaker)) # [k, c, emb]
       feature_emb_list.append(speaker_pair_emb)
 
-      tiled_genre_emb = tf.tile(tf.expand_dims(tf.expand_dims(genre_emb, 0), 0), [k, c, 1]) # [k, c, emb]
-      feature_emb_list.append(tiled_genre_emb)
+      top_antecedent_genders = tf.gather(top_span_genders, top_antecedents)
+      same_gender = ((tf.expand_dims(top_span_genders,1) * top_antecedent_genders) >= 0)
+      same_gender_emb = tf.gather(tf.get_variable("same_gender_emb", [2, self.config["feature_size"]]), tf.to_int32(same_gender))
+      feature_emb_list.append(same_gender_emb)
+
+      top_antecedent_fpronouns = tf.gather(top_span_fpronouns, top_antecedents) # [k, c]
+      fpronoun_count = tf.add(tf.expand_dims(top_span_fpronouns, 1), top_antecedent_fpronouns) # [k, c]
+      no_same_speaker = tf.to_int32(tf.logical_not(tf.equal(tf.expand_dims(top_span_speaker_ids, 1), top_antecedent_speaker_ids))) # [k, c]
+      same_speaker_and_fp = (tf.add(fpronoun_count,no_same_speaker) < 3)
+      same_speaker_and_fp_emb = tf.gather(tf.get_variable("same_speaker_and_fp_emb", [2, self.config["feature_size"]]), tf.to_int32(same_speaker_and_fp))
+      feature_emb_list.append(same_speaker_and_fp_emb)
+
+      #tiled_genre_emb = tf.tile(tf.expand_dims(tf.expand_dims(genre_emb, 0), 0), [k, c, 1]) # [k, c, emb]
+      #feature_emb_list.append(tiled_genre_emb)
 
     if self.config["use_features"]:
       antecedent_distance_buckets = self.bucket_distance(top_antecedent_offsets) # [k, c]
@@ -688,7 +724,7 @@ class CorefModel(object):
 
     avg_loss = 0.0
     for example_num, (tensorized_example, example) in enumerate(self.eval_data):
-      _, _, _, _, _, _, _, _, _, gold_starts, gold_ends, _, _, _ = tensorized_example
+      _, _, _, _, _, _, _, _, _, gold_starts, gold_ends, _, _, _, _ = tensorized_example
       feed_dict = {i:t for i,t in zip(self.input_tensors, tensorized_example)}
       
       predictions, loss = session.run([self.predictions, self.loss], feed_dict=feed_dict)
